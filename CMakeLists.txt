@@ -1,7 +1,12 @@
 ﻿cmake_minimum_required(VERSION 3.31)
 project("VulkanTutorial")
 
-add_executable (VulkanTutorial "VulkanTutorial.cpp" )
+file(GLOB SRC_FILES
+     "src/*.h"
+     "src/*.cpp"
+)
+
+add_executable (VulkanTutorial ${SRC_FILES})
 set_property(TARGET VulkanTutorial PROPERTY CXX_STANDARD 23)
 
 # vulkan
