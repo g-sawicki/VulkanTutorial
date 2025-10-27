@@ -23,3 +23,8 @@ add_subdirectory(vendor/glfw)
 target_include_directories(VulkanTutorial PUBLIC vendor/glm)
 
 target_link_libraries(VulkanTutorial PUBLIC glfw)
+
+add_custom_target(copy_assets
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_LIST_DIR}/copy_assets.cmake
+)
+add_dependencies(VulkanTutorial copy_assets)
