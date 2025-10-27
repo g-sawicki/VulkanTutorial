@@ -69,6 +69,7 @@ private:
         pickPhysicalDevice();
         createLogicalDevice();
         createSwapChain();
+        createImageViews();
     }
 
     void createInstance() {
@@ -397,11 +398,11 @@ private:
 
 
         vkGetSwapchainImagesKHR(device_, swapChain_, &imageCount, nullptr);
-        swapChainImages.resize(imageCount);
-        vkGetSwapchainImagesKHR(device_, swapChain_, &imageCount, swapChainImages.data());
+        swapChainImages_.resize(imageCount);
+        vkGetSwapchainImagesKHR(device_, swapChain_, &imageCount, swapChainImages_.data());
 
-        swapChainImageFormat = surfaceFormat.format;
-        swapChainExtent = extent;
+        swapChainImageFormat_ = surfaceFormat.format;
+        swapChainExtent_ = extent;
     }
 
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) const {
@@ -468,13 +469,42 @@ private:
         }
     }
 
+    void createImageViews() {
+        swapChainImageViews_.resize(swapChainImages_.size());
+
+        for (size_t i = 0; i < swapChainImages_.size(); ++i) {
+            VkImageViewCreateInfo createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            createInfo.image = swapChainImages_[i];
+            createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            createInfo.format = swapChainImageFormat_;
+            createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            createInfo.subresourceRange.baseMipLevel = 0;
+            createInfo.subresourceRange.levelCount = 1;
+            createInfo.subresourceRange.baseArrayLayer = 0;
+            createInfo.subresourceRange.layerCount = 1;
+
+            if (vkCreateImageView(device_, &createInfo, nullptr, &swapChainImageViews_[i]) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create an image view!");
+            }
+        }
+    }
+
     void mainLoop() {
         while (!glfwWindowShouldClose(window_)) {
             glfwPollEvents();
         }
     }
 
-    void cleanup() {
+    void cleanup() { 
+        for (const auto& imageView : swapChainImageViews_) {
+            vkDestroyImageView(device_, imageView, nullptr);
+        }
+
         vkDestroySwapchainKHR(device_, swapChain_, nullptr);
 
         vkDestroyDevice(device_, nullptr);
@@ -499,9 +529,10 @@ private:
     VkPhysicalDevice physicalDevice_         = VK_NULL_HANDLE;
     VkDevice device_                         = VK_NULL_HANDLE;
     VkSwapchainKHR swapChain_                = VK_NULL_HANDLE;
-    std::vector<VkImage> swapChainImages;
-    VkFormat swapChainImageFormat            = VK_FORMAT_UNDEFINED;
-    VkExtent2D swapChainExtent{};
+    std::vector<VkImage> swapChainImages_;
+    std::vector<VkImageView> swapChainImageViews_;
+    VkFormat swapChainImageFormat_           = VK_FORMAT_UNDEFINED;
+    VkExtent2D swapChainExtent_{};
     VkQueue graphicsQueue_                   = VK_NULL_HANDLE;
     VkQueue presentQueue_                    = VK_NULL_HANDLE;
 };
