@@ -613,6 +613,25 @@ private:
             throw std::runtime_error("Failed to create a pipeline layout!");
         }
 
+        VkGraphicsPipelineCreateInfo pipelineInfo{};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
+        pipelineInfo.pStages = shaderStages.data();
+        pipelineInfo.pVertexInputState = &vertexInputInfo;
+        pipelineInfo.pInputAssemblyState = &inputAssembly;
+        pipelineInfo.pViewportState = &viewportState;
+        pipelineInfo.pRasterizationState = &rasterizer;
+        pipelineInfo.pMultisampleState = &multisampling;
+        pipelineInfo.pDepthStencilState = nullptr;
+        pipelineInfo.pColorBlendState = &colorBlending;
+        pipelineInfo.pDynamicState = &dynamicState;
+        pipelineInfo.layout = pipelineLayout_;
+        pipelineInfo.renderPass = renderPass_;
+
+        if (vkCreateGraphicsPipelines(device_, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline_) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create a graphics pipeline!");
+        }
+
         vkDestroyShaderModule(device_, fragShaderModule, nullptr);
         vkDestroyShaderModule(device_, vertShaderModule, nullptr);
     }
@@ -670,6 +689,7 @@ private:
     }
 
     void cleanup() { 
+        vkDestroyPipeline(device_, graphicsPipeline_, nullptr);
         vkDestroyPipelineLayout(device_, pipelineLayout_, nullptr);
         vkDestroyRenderPass(device_, renderPass_, nullptr);
 
@@ -724,6 +744,7 @@ private:
     VkExtent2D swapChainExtent_{};
     VkRenderPass renderPass_                 = VK_NULL_HANDLE;
     VkPipelineLayout pipelineLayout_         = VK_NULL_HANDLE;
+    VkPipeline graphicsPipeline_             = VK_NULL_HANDLE;
     VkQueue graphicsQueue_                   = VK_NULL_HANDLE;
     VkQueue presentQueue_                    = VK_NULL_HANDLE;
 };
