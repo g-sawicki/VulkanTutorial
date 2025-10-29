@@ -74,6 +74,7 @@ private:
         createImageViews();
         createRenderPass();
         createGraphicsPipeline();
+        createFramebuffers();
     }
 
     void createInstance() {
@@ -682,6 +683,28 @@ private:
         }
     }
 
+    void createFramebuffers() {
+        swapChainFramebuffers_.resize(swapChainImageViews_.size());
+        for (size_t i = 0; i < swapChainImageViews_.size(); ++i) {
+            VkImageView attachments[] = {
+                swapChainImageViews_[i]
+            };
+
+            VkFramebufferCreateInfo framebufferInfo{};
+            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebufferInfo.attachmentCount = 1;
+            framebufferInfo.pAttachments = attachments;
+            framebufferInfo.renderPass = renderPass_;
+            framebufferInfo.width = swapChainExtent_.width;
+            framebufferInfo.height = swapChainExtent_.height;
+            framebufferInfo.layers = 1;
+
+            if (vkCreateFramebuffer(device_, &framebufferInfo, nullptr, &swapChainFramebuffers_[i]) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create a framebuffer!");
+            }
+        }
+    }
+
     void mainLoop() {
         while (!glfwWindowShouldClose(window_)) {
             glfwPollEvents();
@@ -689,6 +712,10 @@ private:
     }
 
     void cleanup() { 
+        for (auto& framebuffer : swapChainFramebuffers_) {
+            vkDestroyFramebuffer(device_, framebuffer, nullptr);
+        }
+
         vkDestroyPipeline(device_, graphicsPipeline_, nullptr);
         vkDestroyPipelineLayout(device_, pipelineLayout_, nullptr);
         vkDestroyRenderPass(device_, renderPass_, nullptr);
@@ -740,6 +767,7 @@ private:
     VkSwapchainKHR swapChain_                = VK_NULL_HANDLE;
     std::vector<VkImage> swapChainImages_;
     std::vector<VkImageView> swapChainImageViews_;
+    std::vector<VkFramebuffer> swapChainFramebuffers_;
     VkFormat swapChainImageFormat_           = VK_FORMAT_UNDEFINED;
     VkExtent2D swapChainExtent_{};
     VkRenderPass renderPass_                 = VK_NULL_HANDLE;
