@@ -76,6 +76,7 @@ private:
         createGraphicsPipeline();
         createFramebuffers();
         createCommandPool();
+        createCommandBuffer();
     }
 
     void createInstance() {
@@ -718,6 +719,18 @@ private:
         }
     }
 
+    void createCommandBuffer() {
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.commandPool = commandPool_;
+        allocInfo.commandBufferCount = 1;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+        if (vkAllocateCommandBuffers(device_, &allocInfo, &commandBuffer_) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create command buffers!");
+        }
+    }
+
     void mainLoop() {
         while (!glfwWindowShouldClose(window_)) {
             glfwPollEvents();
@@ -791,6 +804,7 @@ private:
     VkQueue graphicsQueue_                   = VK_NULL_HANDLE;
     VkQueue presentQueue_                    = VK_NULL_HANDLE;
     VkCommandPool commandPool_               = VK_NULL_HANDLE;
+    VkCommandBuffer commandBuffer_           = VK_NULL_HANDLE;
 };
 
 int main() {
