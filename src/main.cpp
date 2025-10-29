@@ -77,6 +77,7 @@ private:
         createFramebuffers();
         createCommandPool();
         createCommandBuffer();
+        createSyncObjects();
     }
 
     void createInstance() {
@@ -680,6 +681,16 @@ private:
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
 
+        VkSubpassDependency dependency{};
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.srcAccessMask = 0;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        renderPassInfo.dependencyCount = 1;
+        renderPassInfo.pDependencies = &dependency;
+
         if (vkCreateRenderPass(device_, &renderPassInfo, nullptr, &renderPass_) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create a render pass!");
         }
@@ -740,7 +751,7 @@ private:
         }
 
         VkRenderPassBeginInfo renderPassBeginInfo{};
-        renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_DEVICE_GROUP_RENDER_PASS_BEGIN_INFO;  
+        renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;  
         renderPassBeginInfo.renderPass = renderPass_;
         renderPassBeginInfo.framebuffer = swapChainFramebuffers_[imageIndex];
         renderPassBeginInfo.renderArea.offset = {0, 0};
@@ -775,13 +786,80 @@ private:
         }
     }
 
-    void mainLoop() {
-        while (!glfwWindowShouldClose(window_)) {
-            glfwPollEvents();
+    void createSyncObjects() {
+        VkSemaphoreCreateInfo semaphoreInfo{};
+        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        if (vkCreateSemaphore(device_, &semaphoreInfo, nullptr, &imageAvailableSemaphore_) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create a semaphore!");
+        }
+
+        if (vkCreateSemaphore(device_, &semaphoreInfo, nullptr, &renderFinishedSemaphore_) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create a semaphore!");
+        }
+
+        VkFenceCreateInfo fenceInfo{};
+        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        if (vkCreateFence(device_, &fenceInfo, nullptr, &inFlightFence_) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create a fence!");
         }
     }
 
+    void mainLoop() {
+        while (!glfwWindowShouldClose(window_)) {
+            glfwPollEvents();
+            drawFrame();
+        }
+
+        vkDeviceWaitIdle(device_);
+    }
+
+    void drawFrame() {
+        vkWaitForFences(device_, 1, &inFlightFence_, VK_TRUE, UINT64_MAX);
+        vkResetFences(device_, 1, &inFlightFence_);
+
+        uint32_t imageIndex;
+        vkAcquireNextImageKHR(device_, swapChain_, UINT64_MAX, imageAvailableSemaphore_, VK_NULL_HANDLE, &imageIndex);
+
+        vkResetCommandBuffer(commandBuffer_, 0);
+        recordCommandBuffer(commandBuffer_, imageIndex);
+
+        VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+        VkSemaphore waitSemaphores[] = { imageAvailableSemaphore_ };
+        VkSemaphore signalSemaphores[] = { renderFinishedSemaphore_ };
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = waitSemaphores;
+        submitInfo.pWaitDstStageMask = waitStages;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &commandBuffer_;
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = signalSemaphores;
+
+        if (vkQueueSubmit(graphicsQueue_, 1, &submitInfo, inFlightFence_) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to submit a draw command buffer!");
+        }
+
+        VkPresentInfoKHR presentInfo{};
+        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = &swapChain_;
+        presentInfo.waitSemaphoreCount = 1;
+        presentInfo.pWaitSemaphores = signalSemaphores;
+        presentInfo.pImageIndices = &imageIndex;
+
+        vkQueuePresentKHR(presentQueue_, &presentInfo);
+    }
+
     void cleanup() {
+        vkDestroySemaphore(device_, imageAvailableSemaphore_, nullptr);
+        vkDestroySemaphore(device_, renderFinishedSemaphore_, nullptr);
+        vkDestroyFence(device_, inFlightFence_, nullptr);
+
         vkDestroyCommandPool(device_, commandPool_, nullptr);
 
         for (auto& framebuffer : swapChainFramebuffers_) {
@@ -849,6 +927,9 @@ private:
     VkQueue presentQueue_                    = VK_NULL_HANDLE;
     VkCommandPool commandPool_               = VK_NULL_HANDLE;
     VkCommandBuffer commandBuffer_           = VK_NULL_HANDLE;
+    VkSemaphore imageAvailableSemaphore_     = VK_NULL_HANDLE;
+    VkSemaphore renderFinishedSemaphore_     = VK_NULL_HANDLE;
+    VkFence inFlightFence_                   = VK_NULL_HANDLE;
 };
 
 int main() {
