@@ -1,5 +1,6 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
 #include <iostream>
 #include <stdexcept>
@@ -45,6 +46,44 @@ struct SwapChainSupportDetails {
     VkSurfaceCapabilitiesKHR capabilities{};
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> presentModes;
+};
+
+struct Vertex {
+    glm::vec2 pos;
+    glm::vec3 color;
+
+    static VkVertexInputBindingDescription getBindingDescription() {
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(Vertex);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        return bindingDescription;
+    }
+
+    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+
+        auto& vertexPosition = attributeDescriptions[0];
+        vertexPosition.binding = 0;
+        vertexPosition.location = 0;
+        vertexPosition.format = VK_FORMAT_R32G32_SFLOAT;
+        vertexPosition.offset = offsetof(Vertex, pos);
+
+        auto& vertexColor = attributeDescriptions[1];
+        vertexColor.binding = 0;
+        vertexColor.location = 1;
+        vertexColor.format = VK_FORMAT_R32G32B32_SFLOAT;
+        vertexColor.offset = offsetof(Vertex, color);
+
+        return attributeDescriptions;
+    }
+};
+
+const std::vector<Vertex> vertices = {
+    {{ 0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{ 0.5f,  0.5f}, {1.0f, 1.0f, 0.0f}},
+    {{-0.5f,  0.5f}, {1.0f, 0.0f, 1.0f}}
 };
 
 class HelloTriangleApplication {
@@ -576,10 +615,15 @@ private:
         inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         inputAssembly.primitiveRestartEnable = VK_FALSE;
 
+        auto bindingDescription = Vertex::getBindingDescription();
+        auto vertexAttributes = Vertex::getAttributeDescriptions();
+
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexBindingDescriptionCount = 0;
-        vertexInputInfo.vertexAttributeDescriptionCount = 0;
+        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexAttributes.size());
+        vertexInputInfo.pVertexAttributeDescriptions = vertexAttributes.data();
 
         VkViewport viewport{};
         viewport.x = 0.0f;
