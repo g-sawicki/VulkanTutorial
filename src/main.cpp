@@ -82,8 +82,8 @@ struct Vertex {
 
 const std::vector<Vertex> vertices = {
     {{ 0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{ 0.5f,  0.5f}, {1.0f, 1.0f, 0.0f}},
-    {{-0.5f,  0.5f}, {1.0f, 0.0f, 1.0f}}
+    {{ 0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}}
 };
 
 class HelloTriangleApplication {
@@ -124,6 +124,7 @@ private:
         createGraphicsPipeline();
         createFramebuffers();
         createCommandPool();
+        createVertexBuffer();
         createCommandBuffer();
         createSyncObjects();
     }
@@ -812,6 +813,54 @@ private:
         }
     }
 
+    void createVertexBuffer() {
+        QueueFamilyIndices indices = findQueueFamilies(physicalDevice_);
+
+        VkBufferCreateInfo bufferInfo{};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+
+        if (vkCreateBuffer(device_, &bufferInfo, nullptr, &vertexBuffer_) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create a vertex buffer!");
+        }
+
+        VkMemoryRequirements memoryRequirements{};
+        vkGetBufferMemoryRequirements(device_, vertexBuffer_, &memoryRequirements);
+
+        uint32_t memoryTypeIndex = findMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memoryRequirements.size;
+        allocInfo.memoryTypeIndex = memoryTypeIndex;
+
+        if (vkAllocateMemory(device_, &allocInfo, nullptr, &vertexBufferMemory_) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to allocate vertex buffer memory!");
+        }
+
+        vkBindBufferMemory(device_, vertexBuffer_, vertexBufferMemory_, 0);
+
+        void* data;
+        vkMapMemory(device_, vertexBufferMemory_, 0, bufferInfo.size, 0, &data);
+        memcpy(data, vertices.data(), static_cast<size_t>(bufferInfo.size));
+        vkUnmapMemory(device_, vertexBufferMemory_);
+    }
+
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const {
+        VkPhysicalDeviceMemoryProperties memoryProperties;
+        vkGetPhysicalDeviceMemoryProperties(physicalDevice_, &memoryProperties);
+
+        for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i) {
+            if (typeFilter & (1 << i) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+                return i;
+            }
+        }
+
+        throw std::runtime_error("Failed to find suitable memory type!");
+    }
+
     void createCommandBuffer() {
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -845,6 +894,10 @@ private:
         vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline_);
 
+        VkBuffer vertexBuffers[] = { vertexBuffer_ };
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
@@ -859,7 +912,7 @@ private:
         scissor.extent = swapChainExtent_;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 
         vkCmdEndRenderPass(commandBuffer);
 
@@ -964,6 +1017,9 @@ private:
     void cleanup() {
         cleanupSwapChain();
 
+        vkDestroyBuffer(device_, vertexBuffer_, nullptr);
+        vkFreeMemory(device_, vertexBufferMemory_, nullptr);
+
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
             vkDestroySemaphore(device_, imageAvailableSemaphores_[i], nullptr);
             vkDestroySemaphore(device_, renderFinishedSemaphores_[i], nullptr);
@@ -1029,6 +1085,8 @@ private:
     VkQueue graphicsQueue_                   = VK_NULL_HANDLE;
     VkQueue presentQueue_                    = VK_NULL_HANDLE;
     VkCommandPool commandPool_               = VK_NULL_HANDLE;
+    VkBuffer vertexBuffer_                   = VK_NULL_HANDLE;
+    VkDeviceMemory vertexBufferMemory_       = VK_NULL_HANDLE;
 
     std::array<VkCommandBuffer, MAX_FRAMES_IN_FLIGHT> commandBuffers_{};
     std::array<VkSemaphore, MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores_{};
