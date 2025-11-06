@@ -1,1 +1,2 @@
-file(COPY ${CMAKE_CURRENT_LIST_DIR}/assets/shaders/out DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets/shaders)
+file(COPY ${CMAKE_CURRENT_LIST_DIR}/assets/shaders/out DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets/shaders/)
+file(COPY ${CMAKE_CURRENT_LIST_DIR}/assets/textures DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets/)

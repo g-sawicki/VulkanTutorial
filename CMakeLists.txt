@@ -22,6 +22,9 @@ add_subdirectory(vendor/glfw)
 # glm
 target_include_directories(VulkanTutorial PUBLIC vendor/glm)
 
+# stb_image
+target_include_directories(VulkanTutorial PUBLIC vendor/stb_image)
+
 target_link_libraries(VulkanTutorial PUBLIC glfw)
 
 add_custom_target(copy_assets
